@@ -3,7 +3,7 @@ import unittest.mock
 import textwrap
 import asyncio
 
-from aioredis import ReplyError, ProtocolError
+from aioredis import ReplyError, ProtocolError, RedisPool
 from aioredis.cluster import RedisCluster, RedisPoolCluster
 from aioredis.cluster.cluster import (
     parse_moved_response_error, parse_nodes_info, ClusterNodesManager,
@@ -294,9 +294,9 @@ class RedisClusterTest(BaseTest):
 
 class RedisPoolClusterTest(BaseTest):
     @asyncio.coroutine
-    def create_test_pool_cluster(self):
+    def create_test_pool_cluster(self, **kwargs):
         nodes = self.get_cluster_addresses(self.redis_port)
-        return self.create_pool_cluster(nodes, loop=self.loop)
+        return self.create_pool_cluster(nodes, loop=self.loop, **kwargs)
 
     @cluster_test()
     @run_until_complete
@@ -316,6 +316,29 @@ class RedisPoolClusterTest(BaseTest):
         self.assertEqual(pool._address[1], self.redis_port + 1)
         pool = cluster.get_pool('GET', b'key:3', 'more', 'args')
         self.assertEqual(pool._address[1], self.redis_port + 2)
+
+    @cluster_test()
+    @run_until_complete
+    def test_cluster_misconfigured(self):
+        with self.assertRaises(RedisClusterError):
+            yield from self.create_test_pool_cluster(password="1234")
+
+    @cluster_test()
+    @run_until_complete
+    def test_get_cluster_pool_fails(self):
+        cluster = yield from self.create_test_pool_cluster()
+        with unittest.mock.patch('aioredis.cluster.cluster.create_pool') as create_pool:
+            pool_futures = [asyncio.Future(loop=self.loop) for i in range(3)]
+            mock_pool = unittest.mock.Mock(spec=RedisPool)
+            mock_pool.clear.return_value = asyncio.Future(loop=self.loop)
+            mock_pool.clear.return_value.set_result(None)
+            pool_futures[0].set_result(mock_pool)
+            pool_futures[2].set_exception(RuntimeError())
+            create_pool.side_effect = pool_futures
+            with self.assertRaises(RuntimeError):
+                yield from cluster.get_cluster_pool()
+            mock_pool.clear.assert_called_once_with(close=True)
+            self.assertTrue(pool_futures[1].cancelled())
 
     @cluster_test()
     @run_until_complete
@@ -408,3 +431,15 @@ class RedisPoolClusterTest(BaseTest):
         self.assertTrue(len(new_pools) > 0)
         self.assertTrue({id(pool) for pool in old_pools}
                         .isdisjoint({id(pool) for pool in new_pools}))
+
+    @cluster_test()
+    @run_until_complete
+    def test_clear_cluster_pool_fails(self):
+        cluster = yield from self.create_test_pool_cluster()
+        with unittest.mock.patch('aioredis.pool.RedisPool.clear') as pool_clear:
+            result = asyncio.Future(loop=self.loop)
+            result.set_result(None)
+            pool_clear.side_effect = [result, RuntimeError(), result]
+            with self.assertRaises(RuntimeError):
+                yield from cluster.clear()
+            self.assertEqual(pool_clear.call_count, 3)

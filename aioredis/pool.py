@@ -31,7 +31,7 @@ def create_pool(address, *, db=0, password=None, ssl=None, encoding=None,
     try:
         yield from pool._fill_free(override_min=False)
     except Exception:
-        yield from pool.clear()
+        yield from pool.clear(close=True)
         raise
     return pool
 
@@ -47,6 +47,7 @@ class RedisPool:
         if minsize > maxsize:
             maxsize = minsize
         self._address = address
+        self._closed = False
         self._db = db
         self._password = password
         self._ssl = ssl
@@ -80,12 +81,15 @@ class RedisPool:
         return len(self._pool)
 
     @asyncio.coroutine
-    def clear(self):
+    def clear(self, close=False):
         """Clear pool connections.
 
-        Close and remove all free connections.
+        Close and remove all free connections. If close is True, also close
+        any released connections and forbid new connections from being opened.
         """
         with (yield from self._cond):
+            if close:
+                self._closed = True
             waiters = []
             while self._pool:
                 conn = self._pool.popleft()
@@ -123,6 +127,8 @@ class RedisPool:
         """
         with (yield from self._cond):
             while True:
+                if self._closed:
+                    raise RuntimeError('Acquiring a connection on a closed pool')
                 yield from self._fill_free(override_min=True)
                 if self.freesize:
                     conn = self._pool.popleft()
@@ -151,7 +157,7 @@ class RedisPool:
                 logger.warning(
                     "Connection %r is in subscribe mode, closing it.", conn)
                 conn.close()
-            elif conn.db == self.db:
+            elif not self._closed and conn.db == self.db:
                 if self.maxsize and self.freesize < self.maxsize:
                     self._pool.append(conn)
                 else:
@@ -175,26 +181,24 @@ class RedisPool:
         # drop closed connections first
         self._drop_closed()
         while self.size < self.minsize:
-            self._acquiring += 1
-            try:
-                conn = yield from self._create_new_connection()
-                self._pool.append(conn)
-            finally:
-                self._acquiring -= 1
-                # connection may be closed at yield point
-                self._drop_closed()
+            yield from self._acquire_connection()
         if self.freesize:
             return
         if override_min:
             while not self._pool and self.size < self.maxsize:
-                self._acquiring += 1
-                try:
-                    conn = yield from self._create_new_connection()
-                    self._pool.append(conn)
-                finally:
-                    self._acquiring -= 1
-                    # connection may be closed at yield point
-                    self._drop_closed()
+                yield from self._acquire_connection()
+
+    @asyncio.coroutine
+    def _acquire_connection(self):
+        self._acquiring += 1
+        try:
+            conn = yield from self._create_new_connection()
+            self._pool.append(conn)
+        finally:
+            self._acquiring -= 1
+            # connection may be closed at yield point
+            self._drop_closed()
+
 
     def _create_new_connection(self):
         return create_redis(self._address,

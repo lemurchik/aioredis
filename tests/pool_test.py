@@ -5,6 +5,7 @@ import unittest
 from textwrap import dedent
 from ._testutil import BaseTest, run_until_complete, no_cluster_test
 from aioredis import RedisPool, ReplyError
+from aioredis.commands import create_connection
 
 PY_35 = sys.version_info >= (3, 5)
 
@@ -46,6 +47,16 @@ class PoolTest(BaseTest):
 
     @no_cluster
     @run_until_complete
+    def test_close(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port), loop=self.loop)
+        self._assert_defaults(pool)
+
+        yield from pool.clear(close=True)
+        self.assertEqual(pool.freesize, 0)
+
+    @no_cluster
+    @run_until_complete
     def test_no_yield_from(self):
         pool = yield from self.create_pool(
             ('localhost', self.redis_port), loop=self.loop)
@@ -68,6 +79,16 @@ class PoolTest(BaseTest):
             self.assertEqual(pool.freesize, 9)
         self.assertEqual(pool.size, 10)
         self.assertEqual(pool.freesize, 10)
+
+    @no_cluster
+    @run_until_complete
+    def test_acquire_closed(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            minsize=1, loop=self.loop)
+        yield from pool.clear(close=True)
+        with self.assertRaises(RuntimeError):
+            yield from pool.acquire()
 
     @no_cluster
     @run_until_complete
@@ -109,6 +130,16 @@ class PoolTest(BaseTest):
 
     @no_cluster
     @run_until_complete
+    def test_create_minsize_greater_maxsize(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            minsize=2, maxsize=1, loop=self.loop)
+        self.assertEqual(pool.size, 2)
+        self.assertEqual(pool.freesize, 2)
+        self.assertEqual(pool.maxsize, 2)
+
+    @no_cluster
+    @run_until_complete
     def test_create_no_minsize(self):
         pool = yield from self.create_pool(
             ('localhost', self.redis_port),
@@ -144,6 +175,20 @@ class PoolTest(BaseTest):
 
     @no_cluster
     @run_until_complete
+    def test_release_pubsub(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            minsize=1, loop=self.loop)
+        self.assertEqual(pool.size, 1)
+        self.assertEqual(pool.freesize, 1)
+
+        with (yield from pool) as redis:
+            yield from redis.subscribe('test')
+        self.assertEqual(pool.size, 0)
+        self.assertEqual(pool.freesize, 0)
+
+    @no_cluster
+    @run_until_complete
     def test_release_bad_connection(self):
         pool = yield from self.create_pool(
             ('localhost', self.redis_port),
@@ -158,6 +203,19 @@ class PoolTest(BaseTest):
         pool.release(conn)
         other_conn.close()
         yield from other_conn.wait_closed()
+
+    @no_cluster
+    @run_until_complete
+    def test_release_pool_closed(self):
+        pool = yield from self.create_pool(
+            ('localhost', self.redis_port),
+            minsize=1, loop=self.loop)
+        conn = yield from pool.acquire()
+        yield from pool.clear(close=True)
+        pool.release(conn)
+        self.assertTrue(conn.closed)
+        self.assertEqual(pool.size, 0)
+        self.assertEqual(pool.freesize, 0)
 
     @no_cluster
     @run_until_complete

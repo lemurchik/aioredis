@@ -503,11 +503,19 @@ class RedisPoolCluster(RedisCluster):
             )
             for node in nodes
         ]
-        yield from asyncio.gather(*tasks, loop=self._loop)
+        try:
+            yield from asyncio.gather(*tasks, loop=self._loop)
 
-        for node, task in zip(nodes, tasks):
-            cluster_pool[node.id] = task.result()
-        return cluster_pool
+            for node, task in zip(nodes, tasks):
+                cluster_pool[node.id] = task.result()
+            return cluster_pool
+        except:
+            for task in tasks:
+                task.cancel()
+            for task in tasks:
+                if task.done() and not task.cancelled() and not task.exception():
+                    yield from task.result().clear(close=True)
+            raise
 
     @asyncio.coroutine
     def reload_cluster_pool(self):
@@ -526,9 +534,18 @@ class RedisPoolCluster(RedisCluster):
 
     @asyncio.coroutine
     def clear(self):
-        """Clear pool connections. Close and remove all free connections."""
-        for pool in self._cluster_pool.values():
-            yield from pool.clear()
+        """Close cluster pool connections."""
+        pools = self._cluster_pool.values()
+        self._cluster_pool = {}
+        last_exception = None
+        for pool in pools:
+            try:
+                yield from pool.clear(close=True)
+            except Exception as exc:
+                logger.exception('Exception on closing pool:')
+                last_exception = exc
+        if last_exception:
+            raise last_exception
 
     @property
     def all_slots_covered(self):
