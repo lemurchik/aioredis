@@ -300,6 +300,7 @@ class RedisCluster(RedisClusterMixin, ServerConstantsMixin,
         self._loop = loop
         self._moved_count = 0
         self._cluster_manager = None
+        self._initialize_lock = asyncio.Lock(loop=loop)
 
     def _is_eval_command(self, command):
         if isinstance(command, bytes):
@@ -383,6 +384,11 @@ class RedisCluster(RedisClusterMixin, ServerConstantsMixin,
 
     @asyncio.coroutine
     def initialize(self):
+        with (yield from self._initialize_lock):
+            yield from self._initialize()
+
+    @asyncio.coroutine
+    def _initialize(self):
         logger.info('Initializing cluster...')
         self._moved_count = 0
         yield from self.fetch_cluster_info()
@@ -423,10 +429,11 @@ class RedisCluster(RedisClusterMixin, ServerConstantsMixin,
                 raise
             logger.debug('Got MOVED command: {}'.format(err))
             self._moved_count += 1
-            if self._moved_count >= self.MAX_MOVED_COUNT:
-                yield from self.initialize()
-                node = self.get_node(command, *args, **kwargs)
-                address = node.address
+            with (yield from self._initialize_lock):
+                if self._moved_count >= self.MAX_MOVED_COUNT:
+                    yield from self._initialize()
+                    node = self.get_node(command, *args, **kwargs)
+                    address = node.address
             conn = yield from self.create_connection(address)
             to_close.append(conn)
             return (yield from getattr(conn, cmd)(*args, **kwargs))
@@ -535,8 +542,8 @@ class RedisPoolCluster(RedisCluster):
         logger.info('Reloaded cluster')
 
     @asyncio.coroutine
-    def initialize(self):
-        yield from super().initialize()
+    def _initialize(self):
+        yield from super()._initialize()
         self._cluster_pool = yield from self.get_cluster_pool()
 
     @asyncio.coroutine
@@ -584,17 +591,18 @@ class RedisPoolCluster(RedisCluster):
                 raise
             logger.debug('Got MOVED command: {}'.format(err))
             self._moved_count += 1
-            if self._moved_count >= self.MAX_MOVED_COUNT:
-                yield from self.initialize()
-                pool = self.get_pool(command, *args, **kwargs)
-                with (yield from pool) as conn:
-                    return (yield from getattr(conn, cmd)(*args, **kwargs))
-            else:
-                conn = yield from self.create_connection(address)
-                res = yield from getattr(conn, cmd)(*args, **kwargs)
-                conn.close()
-                yield from conn.wait_closed()
-                return res
+            with (yield from self._initialize_lock):
+                if self._moved_count >= self.MAX_MOVED_COUNT:
+                    yield from self._initialize()
+                    pool = self.get_pool(command, *args, **kwargs)
+                    with (yield from pool) as conn:
+                        return (yield from getattr(conn, cmd)(*args, **kwargs))
+                else:
+                    conn = yield from self.create_connection(address)
+                    res = yield from getattr(conn, cmd)(*args, **kwargs)
+                    conn.close()
+                    yield from conn.wait_closed()
+                    return res
 
     @asyncio.coroutine
     def _execute_nodes(self, command, *args, **kwargs):
