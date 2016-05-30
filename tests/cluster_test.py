@@ -437,6 +437,7 @@ class RedisPoolClusterTest(BaseTest):
     @run_until_complete
     def test_clear_cluster_pool_fails(self):
         cluster = yield from self.create_test_pool_cluster()
+        pools = cluster._cluster_pool.values()
         with unittest.mock.patch('aioredis.pool.RedisPool.clear') \
                 as pool_clear:
             result = asyncio.Future(loop=self.loop)
@@ -445,3 +446,7 @@ class RedisPoolClusterTest(BaseTest):
             with self.assertRaises(RuntimeError):
                 yield from cluster.clear()
             self.assertEqual(pool_clear.call_count, 3)
+
+        # Really close pools to avoid pending task destroyed errors
+        for pool in pools:
+            yield from pool.clear(close=True)
