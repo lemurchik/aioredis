@@ -3,14 +3,14 @@ import asyncio
 from functools import partial
 from operator import itemgetter
 
+from aioredis.commands.server import ServerConstantsMixin
+from aioredis.commands.sorted_set import SortedSetConstantsMixin
+from aioredis.commands.string import StringConstantsMixin
 from aioredis.errors import ProtocolError
 from aioredis.util import async_task
 from ..commands import (
     create_redis,
-    Redis,
-    ServerConstantsMixin,
-    SortedSetConstantsMixin,
-    StringConstantsMixin
+    Redis
 )
 from ..pool import create_pool
 from ..util import (
@@ -282,7 +282,8 @@ def create_cluster(
 
 # All constants defined in various mixins of Redis must be defined here, too.
 # Otherwise e.g. cluster.SET_IF_NOT_EXISTS returns a functools.partial object.
-class RedisCluster(RedisClusterMixin, ServerConstantsMixin, SortedSetConstantsMixin, StringConstantsMixin):
+class RedisCluster(RedisClusterMixin, ServerConstantsMixin,
+                   SortedSetConstantsMixin, StringConstantsMixin):
     """Redis cluster."""
 
     MAX_MOVED_COUNT = 10
@@ -518,7 +519,8 @@ class RedisPoolCluster(RedisCluster):
             for task in tasks:
                 task.cancel()
             for task in tasks:
-                if task.done() and not task.cancelled() and not task.exception():
+                if task.done() and not task.cancelled() \
+                        and not task.exception():
                     yield from task.result().clear(close=True)
             raise
 

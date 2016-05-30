@@ -5,7 +5,6 @@ import unittest
 from textwrap import dedent
 from ._testutil import BaseTest, run_until_complete, no_cluster_test
 from aioredis import RedisPool, ReplyError
-from aioredis.commands import create_connection
 
 PY_35 = sys.version_info >= (3, 5)
 

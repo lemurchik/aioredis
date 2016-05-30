@@ -327,7 +327,8 @@ class RedisPoolClusterTest(BaseTest):
     @run_until_complete
     def test_get_cluster_pool_fails(self):
         cluster = yield from self.create_test_pool_cluster()
-        with unittest.mock.patch('aioredis.cluster.cluster.create_pool') as create_pool:
+        with unittest.mock.patch('aioredis.cluster.cluster.create_pool') \
+                as create_pool:
             pool_futures = [asyncio.Future(loop=self.loop) for i in range(3)]
             mock_pool = unittest.mock.Mock(spec=RedisPool)
             mock_pool.clear.return_value = asyncio.Future(loop=self.loop)
@@ -436,7 +437,8 @@ class RedisPoolClusterTest(BaseTest):
     @run_until_complete
     def test_clear_cluster_pool_fails(self):
         cluster = yield from self.create_test_pool_cluster()
-        with unittest.mock.patch('aioredis.pool.RedisPool.clear') as pool_clear:
+        with unittest.mock.patch('aioredis.pool.RedisPool.clear') \
+                as pool_clear:
             result = asyncio.Future(loop=self.loop)
             result.set_result(None)
             pool_clear.side_effect = [result, RuntimeError(), result]

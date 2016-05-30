@@ -128,7 +128,8 @@ class RedisPool:
         with (yield from self._cond):
             while True:
                 if self._closed:
-                    raise RuntimeError('Acquiring a connection on a closed pool')
+                    raise RuntimeError(
+                        'Acquiring a connection on a closed pool')
                 yield from self._fill_free(override_min=True)
                 if self.freesize:
                     conn = self._pool.popleft()
@@ -198,7 +199,6 @@ class RedisPool:
             self._acquiring -= 1
             # connection may be closed at yield point
             self._drop_closed()
-
 
     def _create_new_connection(self):
         return create_redis(self._address,
