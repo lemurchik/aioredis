@@ -1,14 +1,16 @@
 from aioredis.util import wait_convert, wait_ok, _NOTSET
 
 
-class StringCommandsMixin:
+class StringConstantsMixin:
+    SET_IF_NOT_EXIST = 'SET_IF_NOT_EXIST'   # NX
+    SET_IF_EXIST = 'SET_IF_EXIST'           # XX
+
+
+class StringCommandsMixin(StringConstantsMixin):
     """String commands mixin.
 
     For commands details see: http://redis.io/commands/#string
     """
-
-    SET_IF_NOT_EXIST = 'SET_IF_NOT_EXIST'   # NX
-    SET_IF_EXIST = 'SET_IF_EXIST'           # XX
 
     def append(self, key, value):
         """Append a value to key."""

@@ -8,6 +8,9 @@ from aioredis.util import async_task
 from ..commands import (
     create_redis,
     Redis,
+    ServerConstantsMixin,
+    SortedSetConstantsMixin,
+    StringConstantsMixin
 )
 from ..pool import create_pool
 from ..util import (
@@ -277,7 +280,9 @@ def create_cluster(
     return cluster
 
 
-class RedisCluster(RedisClusterMixin):
+# All constants defined in various mixins of Redis must be defined here, too.
+# Otherwise e.g. cluster.SET_IF_NOT_EXISTS returns a functools.partial object.
+class RedisCluster(RedisClusterMixin, ServerConstantsMixin, SortedSetConstantsMixin, StringConstantsMixin):
     """Redis cluster."""
 
     MAX_MOVED_COUNT = 10

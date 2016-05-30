@@ -7,7 +7,6 @@ from ._testutil import (
 )
 from ._testutil import RedisEncodingTest
 from aioredis import ReplyError
-from aioredis.commands.string import StringCommandsMixin
 
 
 class StringCommandsTest(RedisTest):
@@ -490,13 +489,13 @@ class StringCommandsTest(RedisTest):
     def test_set_only_if_not_exists(self):
         key, value = b'key:set:only_if_not_exists', b'foo'
         yield from self.redis.set(
-            key, value, exist=StringCommandsMixin.SET_IF_NOT_EXIST)
+            key, value, exist=self.redis.SET_IF_NOT_EXIST)
         result_1 = yield from self.redis.get(key)
         self.assertEqual(result_1, value)
 
         # new values not set cos, values exists
         yield from self.redis.set(
-            key, "foo2", exist=StringCommandsMixin.SET_IF_NOT_EXIST)
+            key, "foo2", exist=self.redis.SET_IF_NOT_EXIST)
         result_2 = yield from self.redis.get(key)
         # nothing changed result is same "foo"
         self.assertEqual(result_2, value)
@@ -507,14 +506,14 @@ class StringCommandsTest(RedisTest):
         # ensure that such key does not exits, and value not sets
         yield from self.redis.delete(key)
         yield from self.redis.set(
-            key, value, exist=StringCommandsMixin.SET_IF_EXIST)
+            key, value, exist=self.redis.SET_IF_EXIST)
         result_1 = yield from self.redis.get(key)
         self.assertEqual(result_1, None)
 
         # ensure key exits, and value updates
         yield from self.redis.set(key, value)
         yield from self.redis.set(
-            key, b'foo', exist=StringCommandsMixin.SET_IF_EXIST)
+            key, b'foo', exist=self.redis.SET_IF_EXIST)
         result_2 = yield from self.redis.get(key)
         self.assertEqual(result_2, b'foo')
 

@@ -4,12 +4,7 @@ if PY_35:
     from aioredis.util import _ScanIterPairs
 
 
-class SortedSetCommandsMixin:
-    """Sorted Sets commands mixin.
-
-    For commands details see: http://redis.io/commands/#sorted_set
-    """
-
+class SortedSetConstantsMixin:
     ZSET_EXCLUDE_MIN = 'ZSET_EXCLUDE_MIN'
     ZSET_EXCLUDE_MAX = 'ZSET_EXCLUDE_MAX'
     ZSET_EXCLUDE_BOTH = 'ZSET_EXCLUDE_BOTH'
@@ -17,6 +12,13 @@ class SortedSetCommandsMixin:
     ZSET_AGGREGATE_SUM = 'ZSET_AGGREGATE_SUM'
     ZSET_AGGREGATE_MIN = 'ZSET_AGGREGATE_MIN'
     ZSET_AGGREGATE_MAX = 'ZSET_AGGREGATE_MAX'
+
+
+class SortedSetCommandsMixin(SortedSetConstantsMixin):
+    """Sorted Sets commands mixin.
+
+    For commands details see: http://redis.io/commands/#sorted_set
+    """
 
     def zadd(self, key, score, member, *pairs):
         """Add one or more members to a sorted set or update its score.

@@ -4,14 +4,16 @@ from aioredis.util import wait_ok, wait_convert, wait_make_dict, _NOTSET
 from aioredis.log import logger
 
 
-class ServerCommandsMixin:
+class ServerConstantsMixin:
+    SHUTDOWN_SAVE = 'SHUTDOWN_SAVE'
+    SHUTDOWN_NOSAVE = 'SHUTDOWN_NOSAVE'
+
+
+class ServerCommandsMixin(ServerConstantsMixin):
     """Server commands mixin.
 
     For commands details see: http://redis.io/commands/#server
     """
-
-    SHUTDOWN_SAVE = 'SHUTDOWN_SAVE'
-    SHUTDOWN_NOSAVE = 'SHUTDOWN_NOSAVE'
 
     def bgrewriteaof(self):
         """Asynchronously rewrite the append-only file."""

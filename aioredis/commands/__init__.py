@@ -3,15 +3,15 @@ import asyncio
 from aioredis.connection import create_connection
 from aioredis.util import _NOTSET
 from .generic import GenericCommandsMixin
-from .string import StringCommandsMixin
+from .string import StringConstantsMixin, StringCommandsMixin
 from .hash import HashCommandsMixin
 from .hyperloglog import HyperLogLogCommandsMixin
 from .set import SetCommandsMixin
-from .sorted_set import SortedSetCommandsMixin
+from .sorted_set import SortedSetConstantsMixin, SortedSetCommandsMixin
 from .transaction import TransactionsCommandsMixin, Pipeline, MultiExec
 from .list import ListCommandsMixin
 from .scripting import ScriptingCommandsMixin
-from .server import ServerCommandsMixin
+from .server import ServerConstantsMixin, ServerCommandsMixin
 from .pubsub import PubSubCommandsMixin
 from .cluster import ClusterCommandsMixin
 
