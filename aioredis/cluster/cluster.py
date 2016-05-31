@@ -428,7 +428,10 @@ class RedisCluster(RedisClusterMixin, ServerConstantsMixin,
             if address is None:
                 raise
             logger.debug('Got MOVED command: {}'.format(err))
-            self._moved_count += 1
+            if not self._initialize_lock.locked():
+                # Do not count move errors during initialization or we risk
+                # directly starting the next initialization.
+                self._moved_count += 1
             with (yield from self._initialize_lock):
                 if self._moved_count >= self.MAX_MOVED_COUNT:
                     yield from self._initialize()
@@ -498,6 +501,7 @@ class RedisPoolCluster(RedisCluster):
         self._minsize = minsize
         self._maxsize = maxsize
         self._cluster_pool = {}
+        self._number_of_initializations = 0
 
     def get_nodes_entities(self):
         return self._cluster_pool.values()
@@ -545,6 +549,7 @@ class RedisPoolCluster(RedisCluster):
     def _initialize(self):
         yield from super()._initialize()
         self._cluster_pool = yield from self.get_cluster_pool()
+        self._number_of_initializations += 1
 
     @asyncio.coroutine
     def clear(self):
@@ -590,19 +595,31 @@ class RedisPoolCluster(RedisCluster):
             if address is None:
                 raise
             logger.debug('Got MOVED command: {}'.format(err))
-            self._moved_count += 1
+
+            last_number_of_initializations = self._number_of_initializations
+            if not self._initialize_lock.locked():
+                # Do not count move errors during initialization or we risk
+                # directly starting the next initialization.
+                self._moved_count += 1
             with (yield from self._initialize_lock):
                 if self._moved_count >= self.MAX_MOVED_COUNT:
                     yield from self._initialize()
-                    pool = self.get_pool(command, *args, **kwargs)
-                    with (yield from pool) as conn:
-                        return (yield from getattr(conn, cmd)(*args, **kwargs))
-                else:
-                    conn = yield from self.create_connection(address)
-                    res = yield from getattr(conn, cmd)(*args, **kwargs)
+
+            # If some coroutine initialized the pool between the MOVED error
+            # and here, we should use the new pool instead of creating new
+            # connections.
+            if (self._number_of_initializations >
+                    last_number_of_initializations):
+                pool = self.get_pool(command, *args, **kwargs)
+                with (yield from pool) as conn:
+                    return (yield from getattr(conn, cmd)(*args, **kwargs))
+            else:
+                conn = yield from self.create_connection(address)
+                try:
+                    return (yield from getattr(conn, cmd)(*args, **kwargs))
+                finally:
                     conn.close()
                     yield from conn.wait_closed()
-                    return res
 
     @asyncio.coroutine
     def _execute_nodes(self, command, *args, **kwargs):
