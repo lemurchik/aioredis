@@ -124,11 +124,6 @@ class ClusterNodesManager:
     CLUSTER_NODES_TUPLE = itemgetter(ID, ADDRESS, FLAGS, MASTER, STATE, SLOTS)
 
     def __init__(self, nodes):
-        nodes = list(nodes)
-        masters_slots = {node.id: node.ranges for node in nodes}
-        for node in nodes:
-            if node.is_slave:
-                node.slots = masters_slots[node.master]
         self.nodes = nodes
 
     def __repr__(self):
