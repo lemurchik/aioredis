@@ -140,7 +140,7 @@ class ClusterNodesManager:
 
     @classmethod
     def create(cls, raw_data):
-        nodes = cls.parse_raw_info(raw_data)
+        nodes = list(cls.parse_raw_info(raw_data))
         return cls(nodes)
 
     @staticmethod
