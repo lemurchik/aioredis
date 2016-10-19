@@ -567,7 +567,10 @@ class RedisPoolCluster(RedisCluster):
 
     def get_pool(self, command, *args, **kwargs):
         node = self.get_node(command, *args, **kwargs)
-        return self._cluster_pool[node.id]
+        try:
+            return self._cluster_pool[node.id]
+        except KeyError:
+            raise RedisClusterError("Node {} not found in pool!".format(node.id))
 
     @asyncio.coroutine
     def _execute_node(self, pool, command, *args, **kwargs):
