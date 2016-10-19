@@ -104,7 +104,7 @@ class RedisConnection:
         self._closing = False
         self._closed = False
         self._close_waiter = asyncio.Future(loop=self._loop)
-        self._reader_task.add_done_callback(self._close_waiter.set_result)
+        self._reader_task.add_done_callback(partial(_set_result, self._close_waiter))
         self._in_transaction = None
         self._transaction_error = None  # XXX: never used?
         self._in_pubsub = 0
