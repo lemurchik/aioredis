@@ -532,13 +532,18 @@ class RedisPoolCluster(RedisCluster):
 
     @asyncio.coroutine
     def reload_cluster_pool(self):
-        logger.info('Reloading cluster...')
-        yield from self.clear()
-        self._moved_count = 0
-        yield from self.fetch_cluster_info()
-        logger.info('Connecting to cluster...')
-        self._cluster_pool = yield from self.get_cluster_pool()
-        logger.info('Reloaded cluster')
+        if self._initialize_lock.locked():
+            with (yield from self._initialize_lock):
+                pass
+        else:
+            with (yield from self._initialize_lock):
+                logger.info('Reloading cluster...')
+                yield from self.clear()
+                self._moved_count = 0
+                yield from self.fetch_cluster_info()
+                logger.info('Connecting to cluster...')
+                self._cluster_pool = yield from self.get_cluster_pool()
+                logger.info('Reloaded cluster')
 
     @asyncio.coroutine
     def _initialize(self):
