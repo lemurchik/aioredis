@@ -286,7 +286,7 @@ SLOT_ZERO_KEY = 'key:24358'  # is mapped to keyslot 0
 KEY_KEY_SLOT = 12539
 NODES_COUNT = 6
 DESIRE_START_PORT = 7000
-PORT_RANGE = 7000
+PORT_RANGE = 3000
 
 
 class FakeConnection:
@@ -412,9 +412,12 @@ def free_ports():
                 raise
 
             ports.append(current_port)
-            current_port = random.randint(
-                DESIRE_START_PORT, DESIRE_START_PORT + PORT_RANGE
-            )
+            while True:
+                current_port = random.randint(
+                    DESIRE_START_PORT, DESIRE_START_PORT + PORT_RANGE
+                )
+                if current_port not in ports:
+                    break
 
     return ports
 
@@ -1465,7 +1468,9 @@ async def test_cluster_failover_ok(force, test_cluster):
 
     slave = await _wait_result(find_slave_or_reload)
 
-    res = await test_cluster.cluster_failover(slave.address, force)
+    res = await asyncio.shield(
+        test_cluster.cluster_failover(slave.address, force)
+    )
     assert res
 
     # Waiting for failover
