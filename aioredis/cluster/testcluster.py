@@ -51,8 +51,12 @@ class TestCluster:
     def terminate(self):
         for process in self.processes.values():
             process.terminate()
+
         for process in self.processes.values():
-            process.wait(1)
+            try:
+                process.wait(1)
+            except subprocess.TimeoutExpired:
+                process.kill()
 
     def clear_directories(self):
         for directory in self._new_directories:
@@ -67,7 +71,10 @@ class TestCluster:
             raise ValueError('No Redis running at port {}.'.format(port))
         process = self.processes.pop(port)
         process.terminate()
-        process.wait(1)
+        try:
+            process.wait(1)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
     def restart_redis(self, port):
         if port in self.processes:
