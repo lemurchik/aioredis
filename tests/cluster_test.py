@@ -397,7 +397,9 @@ class PoolConnectionMock:
 @pytest.fixture(scope='module')
 def free_ports():
     ports = []
-    current_port = random.randint(DESIRE_START_PORT, DESIRE_START_PORT + PORT_RANGE)
+    current_port = random.randint(
+        DESIRE_START_PORT, DESIRE_START_PORT + PORT_RANGE
+    )
     while len(ports) < NODES_COUNT:
 
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -410,7 +412,9 @@ def free_ports():
                 raise
 
             ports.append(current_port)
-            current_port = random.randint(DESIRE_START_PORT, DESIRE_START_PORT + PORT_RANGE)
+            current_port = random.randint(
+                DESIRE_START_PORT, DESIRE_START_PORT + PORT_RANGE
+            )
 
     return ports
 
