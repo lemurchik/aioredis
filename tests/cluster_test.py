@@ -3,6 +3,7 @@ import functools
 import pytest
 import socket
 import math
+import random
 
 from unittest import mock
 
@@ -285,6 +286,7 @@ SLOT_ZERO_KEY = 'key:24358'  # is mapped to keyslot 0
 KEY_KEY_SLOT = 12539
 NODES_COUNT = 6
 DESIRE_START_PORT = 7000
+PORT_RANGE = 7000
 
 
 class FakeConnection:
@@ -395,8 +397,9 @@ class PoolConnectionMock:
 @pytest.fixture(scope='module')
 def free_ports():
     ports = []
-    current_port = DESIRE_START_PORT
+    current_port = random.randint(DESIRE_START_PORT, DESIRE_START_PORT + PORT_RANGE)
     while len(ports) < NODES_COUNT:
+
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
                 s.bind(('127.0.0.1', current_port))
@@ -407,7 +410,7 @@ def free_ports():
                 raise
 
             ports.append(current_port)
-            current_port += 1
+            current_port = random.randint(DESIRE_START_PORT, DESIRE_START_PORT + PORT_RANGE)
 
     return ports
 
