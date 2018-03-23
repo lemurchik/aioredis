@@ -434,10 +434,11 @@ def _cluster_server(server_bin, free_ports, tmpdir, assign_slots):
     )
     server.setup()
 
-    yield server
-
-    server.terminate()
-    server.clear_directories()
+    try:
+        yield server
+    finally:
+        server.terminate()
+        server.clear_directories()
 
 
 @pytest.fixture
