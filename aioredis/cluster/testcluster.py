@@ -28,6 +28,8 @@ class TestCluster:
         see http://redis.io/topics/cluster-tutorial.
 
     """
+    __test__ = False  # Prevent to be treated as a test case
+
     def __init__(self, ports, directory, node_timeout=3000,
                  server_exec=REDIS_SERVER_EXEC, assign_slots=True):
         self.redis_count = len(ports)

@@ -1438,7 +1438,7 @@ async def test_cluster_failover_fail(test_cluster):
     my_master = test_cluster.master_nodes[0]
 
     with pytest.raises(ReplyError):
-        await  test_cluster.cluster_failover(my_master.address)
+        await test_cluster.cluster_failover(my_master.address)
 
 
 @cluster_test
