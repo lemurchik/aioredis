@@ -394,7 +394,7 @@ class PoolConnectionMock:
         )
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture
 def free_ports():
     ports = []
     current_port = random.randint(
