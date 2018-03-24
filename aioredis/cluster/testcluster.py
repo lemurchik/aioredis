@@ -195,7 +195,8 @@ class TestCluster:
             _check_state,
             sockets,
             error_message='Cluster state not ok.',
-            max_errors=10
+            max_errors=10,
+            interval=1
         )
 
     def _retry(self, method, arguments, error_message,
