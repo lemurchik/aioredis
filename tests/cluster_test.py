@@ -1474,8 +1474,8 @@ async def test_cluster_failover_ok(force, test_cluster):
     assert res
 
     # Waiting for failover
-    while True:
-        await asyncio.sleep(0.3)
+    for __ in range(10):
+        await asyncio.sleep(1)
         await test_cluster.initialize()
         for node in test_cluster.master_nodes:
             if node.id == slave.id:
