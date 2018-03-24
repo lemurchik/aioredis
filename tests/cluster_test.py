@@ -1468,9 +1468,7 @@ async def test_cluster_failover_ok(force, test_cluster):
 
     slave = await _wait_result(find_slave_or_reload)
 
-    res = await asyncio.shield(
-        test_cluster.cluster_failover(slave.address, force)
-    )
+    res = await test_cluster.cluster_failover(slave.address, force)
     assert res
 
     # Waiting for failover
